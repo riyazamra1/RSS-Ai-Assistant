@@ -11,8 +11,20 @@
         android:layout_width="match_parent"
         android:layout_height="64dp"
         android:background="#F7F9FC"
+        app:navigationIcon="@android:drawable/ic_menu_revert"
         app:title="RSS Ai Assistant"
-        app:titleTextColor="#172033" />
+        app:titleTextColor="#172033">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/new_chat_button"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_gravity="end|center_vertical"
+            android:minWidth="0dp"
+            android:text="New"
+            android:textAllCaps="false" />
+    </com.google.android.material.appbar.MaterialToolbar>
 
     <ScrollView
         android:id="@+id/message_scroll"
@@ -79,6 +91,16 @@
         android:paddingEnd="12dp"
         android:paddingTop="8dp"
         android:paddingBottom="12dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/attach_button"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="44dp"
+            android:layout_height="52dp"
+            android:minWidth="0dp"
+            android:padding="0dp"
+            android:text="+"
+            android:textSize="24sp" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/message_input_layout"
