@@ -3,7 +3,10 @@ package com.riyaz.rssaiassistant
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
+import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -19,7 +22,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var messageContainer: LinearLayout
     private lateinit var emptyState: LinearLayout
     private lateinit var scroll: ScrollView
-
+    private val handler = Handler(Looper.getMainLooper())
     private val prefs by lazy { getSharedPreferences("rss_ai_chat", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,7 +38,6 @@ class MainActivity : AppCompatActivity() {
 
         toolbar.setNavigationOnClickListener { finish() }
         loadHistory()
-
         send.setOnClickListener { submitMessage() }
         input.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEND || (event != null && event.keyCode == 66)) {
@@ -47,21 +49,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun submitMessage() {
         val message = input.text?.toString()?.trim().orEmpty()
-        if (message.isEmpty()) return
+        if (message.isEmpty() || send.isEnabled.not()) return
 
         input.setText("")
         addMessage(message, true)
-        saveUserMessage(message)
+        appendConversation("U", message)
+        setComposerEnabled(false)
 
-        // AI service is intentionally not called yet. This placeholder keeps the
-        // conversation UI functional until the secure backend is connected.
-        addMessage("I received your message. The AI service connection is the next stage.", false)
-        scrollToBottom()
+        val typing = addMessage("Thinking…", false)
+        handler.postDelayed({
+            messageContainer.removeView(typing)
+            val response = "I’m ready to help. The secure AI service layer is being connected next, so real model responses will replace this local response."
+            addMessage(response, false)
+            appendConversation("A", response)
+            setComposerEnabled(true)
+            input.requestFocus()
+        }, 650)
     }
 
-    private fun addMessage(text: String, fromUser: Boolean) {
-        emptyState.visibility = android.view.View.GONE
-
+    private fun addMessage(text: String, fromUser: Boolean): LinearLayout {
+        emptyState.visibility = View.GONE
         val bubble = TextView(this).apply {
             this.text = text
             textSize = 16f
@@ -72,7 +79,6 @@ class MainActivity : AppCompatActivity() {
                 setColor(if (fromUser) Color.rgb(49, 89, 166) else Color.WHITE)
             }
         }
-
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = if (fromUser) Gravity.END else Gravity.START
@@ -85,22 +91,39 @@ class MainActivity : AppCompatActivity() {
         row.addView(bubble, params)
         messageContainer.addView(row)
         scrollToBottom()
+        return row
     }
 
-    private fun saveUserMessage(message: String) {
-        val old = prefs.getString("messages", "").orEmpty()
-        val updated = if (old.isEmpty()) message else "$old\\n$message"
-        prefs.edit().putString("messages", updated.takeLast(12000)).apply()
+    private fun appendConversation(role: String, text: String) {
+        val old = prefs.getString("conversation", "").orEmpty()
+        val entry = "$role|${text.replace("\\n", " ")}"
+        val updated = if (old.isEmpty()) entry else "$old\\n$entry"
+        prefs.edit().putString("conversation", updated.takeLast(20000)).apply()
     }
 
     private fun loadHistory() {
-        val history = prefs.getString("messages", "").orEmpty()
+        val history = prefs.getString("conversation", "").orEmpty()
         if (history.isEmpty()) return
-        history.split("\\n").filter { it.isNotBlank() }.forEach { addMessage(it, true) }
+        history.split("\\n").forEach { line ->
+            if (line.length > 2 && line[1] == '|') {
+                addMessage(line.substring(2), line[0] == 'U')
+            }
+        }
         scrollToBottom()
+    }
+
+    private fun setComposerEnabled(enabled: Boolean) {
+        send.isEnabled = enabled
+        input.isEnabled = enabled
+        if (enabled) input.alpha = 1f else input.alpha = 0.65f
     }
 
     private fun scrollToBottom() {
         scroll.post { scroll.fullScroll(ScrollView.FOCUS_DOWN) }
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 }
