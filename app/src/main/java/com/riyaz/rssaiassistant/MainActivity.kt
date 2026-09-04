@@ -11,6 +11,7 @@ import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
@@ -35,8 +36,14 @@ class MainActivity : AppCompatActivity() {
         emptyState = findViewById(R.id.empty_state)
         scroll = findViewById(R.id.message_scroll)
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        val newChat = findViewById<MaterialButton>(R.id.new_chat_button)
+        val attach = findViewById<MaterialButton>(R.id.attach_button)
 
         toolbar.setNavigationOnClickListener { finish() }
+        newChat.setOnClickListener { startNewChat() }
+        attach.setOnClickListener {
+            Toast.makeText(this, "Attachments are being prepared for the AI service layer.", Toast.LENGTH_SHORT).show()
+        }
         loadHistory()
         send.setOnClickListener { submitMessage() }
         input.setOnEditorActionListener { _, actionId, event ->
@@ -49,7 +56,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun submitMessage() {
         val message = input.text?.toString()?.trim().orEmpty()
-        if (message.isEmpty() || send.isEnabled.not()) return
+        if (message.isEmpty() || !send.isEnabled) return
 
         input.setText("")
         addMessage(message, true)
@@ -65,6 +72,16 @@ class MainActivity : AppCompatActivity() {
             setComposerEnabled(true)
             input.requestFocus()
         }, 650)
+    }
+
+    private fun startNewChat() {
+        handler.removeCallbacksAndMessages(null)
+        messageContainer.removeViews(1, (messageContainer.childCount - 1).coerceAtLeast(0))
+        emptyState.visibility = View.VISIBLE
+        prefs.edit().remove("conversation").apply()
+        setComposerEnabled(true)
+        input.setText("")
+        Toast.makeText(this, "New chat started", Toast.LENGTH_SHORT).show()
     }
 
     private fun addMessage(text: String, fromUser: Boolean): LinearLayout {
@@ -105,9 +122,7 @@ class MainActivity : AppCompatActivity() {
         val history = prefs.getString("conversation", "").orEmpty()
         if (history.isEmpty()) return
         history.split("\\n").forEach { line ->
-            if (line.length > 2 && line[1] == '|') {
-                addMessage(line.substring(2), line[0] == 'U')
-            }
+            if (line.length > 2 && line[1] == '|') addMessage(line.substring(2), line[0] == 'U')
         }
         scrollToBottom()
     }
@@ -115,7 +130,7 @@ class MainActivity : AppCompatActivity() {
     private fun setComposerEnabled(enabled: Boolean) {
         send.isEnabled = enabled
         input.isEnabled = enabled
-        if (enabled) input.alpha = 1f else input.alpha = 0.65f
+        input.alpha = if (enabled) 1f else 0.65f
     }
 
     private fun scrollToBottom() {
